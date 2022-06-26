@@ -1,85 +1,58 @@
-# eframe template
+# RC Circuit : microbit::demo
 
-[![dependency status](https://deps.rs/repo/github/emilk/eframe_template/status.svg)](https://deps.rs/repo/github/emilk/eframe_template)
-[![Build Status](https://github.com/emilk/eframe_template/workflows/CI/badge.svg)](https://github.com/emilk/eframe_template/actions?workflow=CI)
+This repository contains two `rust` projects that demonstrate real time serial RC capacitor charge and discharge.
 
-This is a template repo for [eframe](https://github.com/emilk/egui/tree/master/eframe), a framework for writing apps using [egui](https://github.com/emilk/egui/).
+- `./mcu` contains microcontroller program code and can be used to flash the microbit::v2.
+- `./gui` contains uart reception and real-time plotting using egui and eframe.
 
-The goal is for this to be the simplest way to get started writing a GUI app in Rust.
+**This is a one rainy sunday project, do not expect quality code 🙃**
 
-You can compile your app natively or for the web, and share it using Github Pages.
-
-## Getting started
-
-Start by clicking "Use this template" at https://github.com/emilk/eframe_template/ or follow [these instructions](https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template).
-
-Change the name of the crate: Chose a good name for your project, and change the name to it in:
-* `Cargo.toml`
-    * Change the `package.name` from `eframe_template` to `your_crate`
-    * Change the `package.authors`
-    * Change the `package.default-run` from `eframe_template_bin` to `your_crate_bin` (note the `_bin`!)
-    * Change the `bin.name` from `eframe_template_bin` to `your_crate_bin` (note the `_bin`!)
-* `main.rs`
-    * Change `eframe_template::TemplateApp` to `your_crate::TemplateApp`
-* `docs/index.html`
-    * Change the `<title>`
-    * Change the `<script src=…` line from `eframe_template.js` to `your_crate.js`
-    * Change the `wasm_bindgen(…` line from `eframe_template_bg.wasm` to `your_crate_bg.wasm` (note the `_bg`!)
-* `docs/sw.js`
-    * Change the `'./eframe_template.js'` to `./your_crate.js` (in `filesToCache` array)
-    * Change the `'./eframe_template_bg.wasm'` to `./your_crate_bg.wasm` (in `filesToCache` array)
-* Remove the web build of the old name: `rm docs/eframe_template*`
-
-### Learning about egui
-
-`src/app.rs` contains a simple example app. This is just to give some inspiration - most of it can be removed if you like.
-
-The official egui docs are at <https://docs.rs/egui>. If you prefer watching a video introduction, check out <https://www.youtube.com/watch?v=NtUkr_z7l84>. For inspiration, check out the [the egui web demo](https://emilk.github.io/egui/index.html) and follow the links in it to its source code.
-
-### Testing locally
-
-Make sure you are using the latest version of stable rust by running `rustup update`.
-
-`cargo run --release`
-
-On Linux you need to first run:
-
-`sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev`
-
-On Fedora Rawhide you need to run:
-
-`dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel libxkbcommon-devel pkg-config openssl-devel libxcb-devel`
-
-For running the `build_web.sh` script you also need to install `jq` and `binaryen` with your packet manager of choice.
-
-### Compiling for the web
-
-Make sure you are using the latest version of stable rust by running `rustup update`.
-
-You can compile your app to [WASM](https://en.wikipedia.org/wiki/WebAssembly) and publish it as a web page. For this you need to set up some tools. There are a few simple scripts that help you with this:
-
-```sh
-./setup_web.sh
-./build_web.sh
-./start_server.sh
-open http://127.0.0.1:8080/
+## How to use
 ```
+# in ./gui
+cargo run --release
+# in ./mcu
+cargo embed --features v2 --target thumbv7em-none-eabihf
+```
+See below for software and hardware requirements.
 
-* `setup_web.sh` installs the tools required to build for web
-* `build_web.sh` compiles your code to wasm and puts it in the `docs/` folder (see below)
-* `start_server.sh` starts a local HTTP server so you can test before you publish
-* Open http://127.0.0.1:8080/ in a web browser to view
+## Video demonstration
+A simple breadboard montage with two push buttons for charging and discharging circuit is depicted on the left.  
+On the right, the analog DC voltage taken at the capacitor level is plotted in function of time.  
+I change the resistor mid-video in order to demonstrate the effect on transient raising time.
+<p align="center">
+<a href="https://www.youtube.com/watch?v=WmhbGuJmt2Y&ab_channel=AlexIsLouis">
+Click here to see the video on YouTube or on the image.
+<img width="800" src="media/capture.png">
+</a>
+</p>
 
-The finished web app is found in the `docs/` folder (this is so that you can easily share it with [GitHub Pages](https://docs.github.com/en/free-pro-team@latest/github/working-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)). It consists of three files:
+## Details
+### MCU
+The MCU code has two simple purposes :
+- Initiate UART serial connection in order to talk to the GUI (tx/rx gpios p0_06, p1_08).
+- Configure analog IN GPIO 0 (p0_02).
+- Sample analog voltage with [SAADC](https://en.wikipedia.org/wiki/Successive-approximation_ADC) peripheral.
+- Convert `i16` readings in `u8` to be sent in UART frames. 
+- Loop
 
-* `index.html`: A few lines of HTML, CSS and JS that loads your app. **You need to edit this** (once) to replace `eframe_template` with the name of your crate!
-* `your_crate_bg.wasm`: What the Rust code compiles to.
-* `your_crate.js`: Auto-generated binding between Rust and JS.
+I mainly used the HAL Peripherals directly from the microbit crate (not using the Board::board structure). 
 
-You can test the template app at <https://emilk.github.io/eframe_template/>.
+### GUI
+The GUI code does the following :
+- Initiate UART serial connection in order to talk to the MCU ([serialport](https://docs.rs/serialport/%5E4.2.0) crate).
+- Read from serial byte stream and convert back to `i16`.
+- Keep rolling history of reading and plot in realtime the voltage.
 
-## Updating egui
+## Hardware (I used)
+- microbit::v2 (code specific)
+- 470 microF / 16V capacitor
+- two switches
+- various resistors in order to change transient time constant
 
-As of 2022, egui is in active development with frequent releases with breaking changes. [eframe_template](https://github.com/emilk/eframe_template/) will be updated in lock-step to always use the latest version of egui.
+## Dependencies
+See both `Cargo.toml` as well as [these instructions](https://docs.rust-embedded.org/discovery/microbit/03-setup/index.html) for the mcu part.
 
-When updating `egui` and `eframe` it is recommended you do so one version at the time, and read about the changes in [the egui changelog](https://github.com/emilk/egui/blob/master/CHANGELOG.md) and [eframe changelog](https://github.com/emilk/egui/blob/master/eframe/CHANGELOG.md).
+## References
+- https://github.com/nrf-rs/microbit/
+- https://docs.rust-embedded.org/discovery/microbit/index.html
